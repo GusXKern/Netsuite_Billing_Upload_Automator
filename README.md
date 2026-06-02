@@ -49,8 +49,11 @@ data_mappings = {
 }
 ```
 
+- Using faker, we can generate 5 random firm names. Each row then includes a random item from each of the parts of the Setup Mappings. After running, it looks like this:
+![First Few Rows of the Generated Raw Data](Photos/Test_Data.png)
 
 ### 2. Make and Test Price Level Mapping
+
 ### 3. Create SQL Tables with Mapping for Upload Page
 ### 4. Use Streamlit to Make a Webpage to Upload and Transform Fake Data
 
