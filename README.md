@@ -53,6 +53,71 @@ data_mappings = {
 ![First Few Rows of the Generated Raw Data](Photos/Test_Data.png)
 
 ### 2. Make and Test Price Level Mapping
+For the next step, I wanted to test out the most important feature of the upload template before working on the rest: assigning Price Levels. In real life, each customer might have a variety of unique pricing tiers triggered based on location, the type of services provided, etc. For this project, I assigned each price level to a unique combination of Customer, County, and Type and mapped it in a CSV:
+![Price Level Mapping](Photos/)
+
+As you can see above, Johnson-Clark and Peterson Inc each have multiple price levels, with Johnson-Clark having different pricing for each County-Type combination, and Peterson Inc having a different price for each county. The other three firms just use the base pricing for that specific customer (ex. Powell, Barnes and Owens). 
+
+In the code below, we use this CSV and 
+```Python
+import pandas as pd
+
+def assign_price_levels(billing_path, rules_path):
+    df_billing = pd.read_csv(billing_path)
+    df_rules = pd.read_csv(rules_path)
+    
+    assigned_levels = []
+    
+    for idx, row in df_billing.iterrows():
+        cust = row["Customer"]
+        county = row["County"]
+        billing_type = row["Type"]
+        
+        best_rule = "{Customer} Flat Rate Rule" # Fallback text string
+        highest_score = -1
+        
+        for r_idx, rule in df_rules.iterrows():
+            score = 0
+            
+            # --- 1. Evaluate Customer ---
+            if rule["Customer"] == cust:
+                score += 2
+            elif rule["Customer"] == "DEFAULT":
+                score += 1
+            else:
+                continue
+                
+            # --- 2. Evaluate County ---
+            if rule["County"] == county:
+                score += 2
+            elif rule["County"] == "ANY":
+                score += 1
+            else:
+                continue
+                
+            # --- 3. Evaluate Type ---
+            if rule["Type"] == billing_type:
+                score += 2
+            elif rule["Type"] == "ANY":
+                score += 1
+            else:
+                continue
+            
+            if score > highest_score:
+                highest_score = score
+                best_rule = rule["Price_Level_Name"]
+        
+        # Automatically inject the row's actual customer name into the naming template
+        final_price_level = best_rule.replace("{Customer}", cust)
+        
+        assigned_levels.append(final_price_level)
+        
+    df_billing["NetSuite_Price_Level"] = assigned_levels
+    return df_billing
+
+# Let's run it!
+df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
+```
 
 ### 3. Create SQL Tables with Mapping for Upload Page
 ### 4. Use Streamlit to Make a Webpage to Upload and Transform Fake Data
