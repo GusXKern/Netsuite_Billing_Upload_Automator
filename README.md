@@ -126,155 +126,265 @@ For example, for this row in the raw data, each row of the Price Level mapping i
 And here is how it assigns the Price Levels to the Johnson-Clark rows:
 ![JC PL](Photos/)
 ### 3. Create SQL Tables with Mapping for Upload Page
-Now that we have seen how we mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, like we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
+Now that we have seen how our mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, as we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
 
-Using sqlite3, I took this d
+After mapping out all the required tables and connections:
+![Tables Mapped Out](Photos/)
+And then built them using Python and sqlite3:
+```Python
+import sqlite3
+import pandas as pd
+import os
+
+def create_database_v2():
+    """Builds the SQLite tables and fills them with baseline NetSuite mappings."""
+    # Force the database file to stay in the exact folder this script is in
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, "billing_system.db")
+    
+    if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+                print("Successfully deleted old database cache.")
+            except Exception as e:
+                print(f"Note: Could not clear live cache file automatically: {e}")
+                print("Please manually close your Streamlit app terminal window first!")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Enable foreign keys support in SQLite
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    
+    # 1. Customers Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS customers_db (
+            customer_name TEXT PRIMARY KEY,
+            netsuite_id TEXT NOT NULL
+        )
+    ''')
+    
+    # 2. Items Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS items_db (
+            item_code TEXT PRIMARY KEY,
+            netsuite_internal_id TEXT NOT NULL,
+            line_order INTEGER NOT NULL
+        )
+    ''')
+    
+    # 3. Price Level Names Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS price_levels_db (
+            price_level_name TEXT PRIMARY KEY,
+            netsuite_internal_id_pl TEXT NOT NULL
+        )
+    ''')
+    
+    # 4. Rules Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS price_level_rules (
+            rule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            county TEXT NOT NULL,
+            type TEXT NOT NULL,
+            price_level_name TEXT NOT NULL,
+            FOREIGN KEY (customer_name) REFERENCES customers_db (customer_name)
+        )
+    ''')
+    
+    # 5. Prices Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS prices_db (
+            customer_name TEXT,
+            item_code TEXT,
+            price_level_name TEXT,
+            price REAL NOT NULL,
+            PRIMARY KEY (customer_name, item_code, price_level_name),
+            FOREIGN KEY (customer_name) REFERENCES customers_db (customer_name),
+            FOREIGN KEY (item_code) REFERENCES items_db (item_code),
+            FOREIGN KEY (price_level_name) REFERENCES price_levels_db (price_level_name)
+        )
+    ''')
+```
+
+After making the tables, I added some test rows so I could make sure the final upload maker was working correctly. For example, I added a few non-default prices to the prices_db table:
+```Python
+    # Seed Prices
+    cursor.executemany('''
+        INSERT OR IGNORE INTO prices_db VALUES (?, ?, ?, ?)
+    ''', [
+        (pbo_name, "1001", "Powell Flat Rate Rule", 150.00),
+        (pbo_name, "1002", "Powell Flat Rate Rule", 175.00),
+        (jc_name, "1001", "JC-CX-TypeA", 110.00),
+        (jc_name, "1001", "JC-CX-TypeB", 130.00),
+        ("DEFAULT", "1001", "Base Price", 100.00),
+        ("DEFAULT", "1002", "Base Price", 100.00)
+    ])
+```
+Once the code is run, the tables are stored in billing_system.db, ready to be queried as needed.
 
 ### 4. Use Streamlit to Make a Webpage to Upload and Transform Fake Data
+Now that all of the tables are made, we can make the final upload form! At first, I just used Python to pull from the SQL tables and make the final CSV, but given this project's origins as a continuation of a project I originally made for clients with limited technical backgrounds, I wanted to try something different.
 
+Instead, using Streamlit, I wanted to make a webpage that would allow you to simply upload a CSV of the raw data and have it spit out a completed upload page with all the code running in the background. In order to do this, I would first need to make the logic necessary to populate all the needed columns of the upload:
+```Python
+# --- THE CORE TRANSFORMATION ENGINE ---
+def process_billing_dataframe(df_billing):
+    """Processes the billing dataframe using rules pulled dynamically from SQLite."""
+    # Step 1: Fetch Database Tables using our forced global path
+    conn = sqlite3.connect(TRUE_DB_PATH)
+    df_rules = pd.read_sql_query("SELECT * FROM price_level_rules", conn)
+    df_custs = pd.read_sql_query("SELECT * FROM customers_db", conn)
+    df_items = pd.read_sql_query("SELECT * FROM items_db", conn)
+    df_prices = pd.read_sql_query("SELECT * FROM prices_db", conn)
+    conn.close()
+    
+    # Step 2: Scoring Engine (Price Levels)
+    assigned_levels = []
+    for idx, row in df_billing.iterrows():
+        cust, county, billing_type = row["Customer"], row["County"], row["Type"]
+        clean_cust = clean_string_key(cust)
+        best_rule = "Base Price"
+        highest_score = -1
+        
+        for r_idx, rule in df_rules.iterrows():
+            score = 0
+            rule_cust = clean_string_key(rule["customer_name"])
+            if rule_cust == clean_cust: score += 2
+            elif rule_cust == "default": score += 1
+            else: continue
+            
+            if str(rule["county"]).strip() == str(county).strip(): score += 2
+            elif str(rule["county"]).strip() == "ANY": score += 1
+            else: continue
+            
+            if str(rule["type"]).strip() == str(billing_type).strip(): score += 2
+            elif str(rule["type"]).strip() == "ANY": score += 1
+            else: continue
+            
+            if score > highest_score:
+                highest_score = score
+                best_rule = rule["price_level_name"]
+        assigned_levels.append(best_rule)
+        
+    df_billing["Price Level"] = assigned_levels
+    df_billing["CA Line?"] = df_billing["State"].apply(lambda x: "YES" if x == "CA" else "NO")
+    
+    # Step 3: Quantity Aggregation
+    df_grouped = df_billing.groupby(
+        ["Customer", "Item", "Price Level", "CA Line?"], as_index=False
+    ).agg({"Units": "sum"}).rename(columns={"Units": "Qty"})
+    
+    # Step 4: Prepare Uniform Match Keys
+    df_grouped["_match_item"] = df_grouped["Item"].apply(force_integer_item)
+    df_items["_match_item"] = df_items["item_code"].apply(force_integer_item)
+    df_prices["_match_item"] = df_prices["item_code"].apply(force_integer_item)
+    
+    df_grouped["_match_cust"] = df_grouped["Customer"].apply(clean_string_key)
+    df_custs["_match_cust"] = df_custs["customer_name"].apply(clean_string_key)
+    df_prices["_match_cust"] = df_prices["customer_name"].apply(clean_string_key)
+    
+    df_grouped["_match_pl"] = df_grouped["Price Level"].astype(str).str.strip()
+    df_prices["_match_pl"] = df_prices["price_level_name"].astype(str).str.strip()
 
-```sql
-SELECT ROUND(SUM(salesterritory.salesytd),2) AS Total_Sales
-FROM sales.salesterritory
+    # Step 5: Join Tables
+    df_items_clean = df_items.drop_duplicates(subset=["_match_item"])
+    df_custs_clean = df_custs.drop_duplicates(subset=["_match_cust"])
+    
+    df_grouped = pd.merge(df_grouped, df_custs_clean[["_match_cust", "netsuite_id"]], on="_match_cust", how="left")
+    df_grouped = df_grouped.rename(columns={"netsuite_id": "Customer ID"})
+    
+    df_grouped = pd.merge(df_grouped, df_items_clean[["_match_item", "netsuite_internal_id", "line_order"]], on="_match_item", how="left")
+    df_grouped = df_grouped.rename(columns={"netsuite_internal_id": "Item ID", "line_order": "Line Order"})
+    
+    df_grouped = pd.merge(df_grouped, df_prices[["_match_cust", "_match_item", "_match_pl", "price"]], on=["_match_cust", "_match_item", "_match_pl"], how="left")
+
+    # Step 6: Fallback Handling
+    df_grouped["Line Order"] = df_grouped["Line Order"].fillna(1).astype(int)
+    df_grouped["Customer ID"] = df_grouped["Customer ID"].fillna("NS-CUST-0000")
+    df_grouped["price"] = df_grouped["price"].fillna(100.00)
+    df_grouped["Total_Calculated_Value"] = df_grouped["Qty"] * df_grouped["price"]
+    
+    # Step 7: Build Export Format
+    def get_ext_id(name):
+        return f"0526-{''.join([w[0] for w in name.replace(',', '').split()]).upper()[:3]}"
+        
+    df_grouped["External ID"] = df_grouped["Customer"].apply(get_ext_id)
+    df_grouped["Date"] = "5/31/2026"
+    df_grouped["Trade Credit"] = "Net 15"
+    df_grouped["Due Date"] = "6/15/2026"
+    
+    final_cols = [
+        "External ID", "Date", "Customer", "Item", "Line Order", 
+        "CA Line?", "Qty", "Price Level", "Customer ID", 
+        "Item ID", "Trade Credit", "Due Date", "price", "Total_Calculated_Value"
+    ]
+    
+    return df_grouped[final_cols]
 ```
-![Output](Photos/1.png)
-
-### 2. Sales by Region
-```sql
-SELECT ROUND(SUM(salesterritory.salesytd),2) AS Region_Sales, salesterritory.group
-FROM sales.salesterritory
-GROUP BY salesterritory.group
+The key element of the above code block is how it aggregates the total number of units for each unique Customer/Item/Price Level/CA Line? combination. Everything else is just taking from various tables, looking at the item code, price level, etc. and pulling the requisite information. For example, in the prior section we saw that one of the rows of the price_db was:
+```Python
+(jc_name, "1001", "JC-CX-TypeA", 110.00)
 ```
-![Output](Photos/3.png)
+An aggregate row of the final upload that had Johnson-Clark for Customer, 1001 for Item, and JC-CX-TypeA for Price Level, would then be assigned a price of $110.
 
-### 3. Sales by Year
-```sql
-SELECT
-ROUND(SUM(totaldue),2) AS Sales,
-DATE_PART('year', salesorderheader.modifieddate::date) AS year_sold
-FROM sales.salesorderheader
-GROUP BY year_sold
-ORDER BY Sales DESC
+
+Lastly, we use Streamlit to make the user interface:
+```Python
+# Sidebar Status & Live Table Inspector
+st.sidebar.header("System Status")
+if os.path.exists(TRUE_DB_PATH):
+    st.sidebar.success("✅ SQLite Database Located")
+    
+    try:
+        conn = sqlite3.connect(TRUE_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [t[0] for t in cursor.fetchall()]
+        conn.close()
+        
+        if tables:
+            st.sidebar.write("🟢 **Live Tables Found:**", tables)
+        else:
+            st.sidebar.warning("⚠️ Database file is open but contains ZERO tables.")
+    except Exception as e:
+        st.sidebar.error(f"Error inspecting tables: {e}")
+else:
+    st.sidebar.error("❌ Database file completely missing at this path!")
+
+# Main File Uploader Layout
+uploaded_file = st.file_uploader("Choose raw billing CSV file", type=["csv"])
+
+if uploaded_file is not None:
+    try:
+        raw_df = pd.read_csv(uploaded_file)
+        
+        st.subheader("Raw Data Preview")
+        st.dataframe(raw_df.head(5), use_container_width=True)
+        
+        if st.button("🚀 Process Billing File", type="primary"):
+            with st.spinner("Executing rule matrices and mapping internal configurations..."):
+                # Call pipeline using the unified engine configuration
+                final_output_df = process_billing_dataframe(raw_df)
+                
+                st.success("🎉 Billing sheet generated successfully!")
+                
+                st.subheader("Processed Output Preview (First 10 Rows)")
+                st.dataframe(final_output_df.head(10), use_container_width=True)
+                
+                csv_data = final_output_df.to_csv(index=False).encode('utf-8')
+                
+                st.download_button(
+                    label="📥 Download Final NetSuite Sheet",
+                    data=csv_data,
+                    file_name="final_sheet.csv",
+                    mime="text/csv",
+                )
+    except Exception as e:
+        st.error(f"An error occurred while processing the file: {e}")
 ```
-![Output](Photos/4.png)
 
-### 4. Sales By Store
-```sql
--- Step 1: Join to match PersonID for each BuisnessEntityID
-SELECT
-s.businessentityid,
-be.personid,
-s.name,
-s.salespersonid
-FROM sales.store AS s
-LEFT JOIN person.businessentitycontact AS be ON
-s.businessentityid = be.businessentityid
-```
-![Output](Photos/5.png)
-
-```sql
--- Step 2: Join to match CustomerID for each PersonID
-WITH id_table AS
-(SELECT
-s.businessentityid,
-be.personid,
-s.name,
-s.salespersonid
-FROM sales.store AS s
-LEFT JOIN person.businessentitycontact AS be ON
-s.businessentityid = be.businessentityid)
-
-SELECT 
-id_table.name,
-cid.customerid
-FROM id_table
-LEFT JOIN sales.customer AS cid ON
-id_table.personID = cid.personID
-```
-![Output](Photos/6.png)
-
-```sql
---Step 3: Join Sales Table using CustomerID to Find Sales by Store 
-WITH sales_by_store AS 
-(
-    WITH id_table AS
-    (SELECT
-    s.businessentityid,
-    be.personid,
-    s.name,
-    s.salespersonid
-    FROM sales.store AS s
-    LEFT JOIN person.businessentitycontact AS be ON
-    s.businessentityid = be.businessentityid)
-
-    SELECT 
-    id_table.name,
-    cid.customerid
-    FROM id_table
-    LEFT JOIN sales.customer AS cid ON
-    id_table.personID = cid.personID
-)
-
-SELECT 
-    sales_by_store.name,
-    ROUND(SUM(salesorderheader.totaldue),2) AS tot_store_sales
-FROM sales_by_store
-INNER JOIN sales.salesorderheader ON
-sales_by_store.customerID = salesorderheader.customerID
-GROUP BY sales_by_store.name
-ORDER BY tot_store_sales DESC
-```
-![Output](Photos/7.png)
-
-### 5. Total Order Quantity
-```sql
-SELECT COUNT(DISTINCT salesorderdetail.salesorderdetailid) AS Total_Orders
-FROM sales.salesorderdetail
-```
-![Output](Photos/9.png)
-
-### 6. Total Number of Products
-```sql
-SELECT COUNT(DISTINCT product.productid) AS tot_products
-FROM production.product
-```
-![Output](Photos/10.png)
-
-### 7. Count of Products and Average Profit by Category
-```sql
-SELECT pro_cat.productcategoryID, 
-pro_cat.name,
-COUNT(pro_cat.productcategoryID) AS pro_cat_count,
-ROUND(AVG(product.listprice),2) AS avg_list_price,
-ROUND(AVG(product.standardcost),2) AS avg_cost,
-ROUND(AVG(product.listprice),2)-ROUND(AVG(product.standardcost),2) as avg_profit
-FROM production.product
-INNER JOIN production.productsubcategory AS sub_cat ON --Inner Join so we can get rid of products with no listed category
-product.productsubcategoryID = sub_cat.productsubcategoryID
-INNER JOIN production.productcategory AS pro_cat ON
-sub_cat.productcategoryID = pro_cat.productcategoryID
-GROUP BY pro_cat.productcategoryID
-ORDER BY avg_profit DESC, pro_cat_count DESC
-```
-![Output](Photos/11.png)
-
-### 8. Count of Products and Average Profit by Subcategory 
-```sql
-SELECT sub_cat.productsubcategoryID, 
-sub_cat.name,
-COUNT(sub_cat.productsubcategoryID) AS sub_cat_count, 
-ROUND(AVG(product.listprice),2) AS avg_list_price,
-ROUND(AVG(product.standardcost),2) AS avg_cost,
-ROUND(AVG(product.listprice),2)-ROUND(AVG(product.standardcost),2) as avg_profit
-FROM production.product
-INNER JOIN production.productsubcategory AS sub_cat ON --Inner Join so we can get rid of products with no listed category
-product.productsubcategoryID = sub_cat.productsubcategoryID
-INNER JOIN production.productcategory AS pro_cat ON
-sub_cat.productcategoryID = pro_cat.productcategoryID
-GROUP BY sub_cat.productsubcategoryID
-ORDER BY avg_profit DESC, sub_cat_count DESC
-```
-![Output](Photos/12.png)
 
 # What I Learned
 
