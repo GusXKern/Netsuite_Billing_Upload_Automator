@@ -120,11 +120,16 @@ df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
 ```
 In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0 and then the three criteria are evaluated for each of the Price Levels on the price level CSV. 
 
-For example, for this row in the 
+For example, for this row in the raw data, each row of the Price Level mapping is given a score based on how many matches there are, with a match in any category being worth 2, versus the default of 1. I manually added a score column so you can see how it ends up picking the correct Price Level.
 ![Price Level Mapping](Photos/)
 ![Price Level Mapping](Photos/)
-
+And here is how it assigns the Price Levels to the Johnson-Clark rows:
+![JC PL](Photos/)
 ### 3. Create SQL Tables with Mapping for Upload Page
+Now that we have seen how we mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, like we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
+
+Using sqlite3, I took this d
+
 ### 4. Use Streamlit to Make a Webpage to Upload and Transform Fake Data
 
 
