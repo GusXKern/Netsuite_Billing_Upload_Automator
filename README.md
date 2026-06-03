@@ -118,6 +118,11 @@ def assign_price_levels(billing_path, rules_path):
 # Let's run it!
 df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
 ```
+In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0 and then the three criteria are evaluated for each of the Price Levels on the price level CSV. 
+
+For example, for this row in the 
+![Price Level Mapping](Photos/)
+![Price Level Mapping](Photos/)
 
 ### 3. Create SQL Tables with Mapping for Upload Page
 ### 4. Use Streamlit to Make a Webpage to Upload and Transform Fake Data
