@@ -384,16 +384,20 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"An error occurred while processing the file: {e}")
 ```
+And in the end, the user is able to easily transform the raw data file into an uploadable CSV:'
+(GIF)!~
 
 
 # What I Learned
 
-From working on this project, I've learned many important basic and advanced SQL skills:
+Building this end-to-end automation pipeline allowed me to bridge the gap between traditional accounting workflows and modern data engineering. Through this project, I leveled up several core technical competencies:
 
-- **🧩 Working With Large Databases:** Worked with queries where I needed to merge more than two tables, using WITH clauses to make temporary results sets. This also improved my understanding of large relational databases. Deciding which tables to use in my joins to efficiently get all of the information I needed was a fun and rewarding challenge to tackle. 
-- **📊 Data Aggregation:** Used GROUP BY and aggregate functions like COUNT() and AVG() to find key insights in the data.
-- **💡 Analytical Wizardry:** Leveled up my real-world puzzle-solving skills, turning questions into actionable, insightful SQL queries.
+- **🏗️ Relational Database Schema Design:** Instead of relying on messy, disconnected flat files, I learned how to architect a centralized SQLite database. I mastered utilizing primary keys, mapping out foreign key constraints to enforce data integrity, and establishing a single source of truth for corporate finance logic.
+- **🎛️ Feature Engineering & Heuristic Mapping:** I learned how to design a deterministic scoring algorithm (a rule-based heuristic classifier) in Python to handle multi-dimensional matching (Customer, County, and Type). This taught me how to program complex business logic that gracefully handles edge-cases and fallbacks without breaking the pipeline.
+- **📊 Advanced Data Aggregation with Pandas:** I deepened my understanding of vectorized data manipulation by using Pandas to handle group-by operations, conditional data flags (`CA Line?`), and structural table merges—replacing resource-heavy loop iterations with clean, scalable, join-based logic.
+- **🖥️ Full-Stack Prototyping with Streamlit:** I learned how to wrap complex back-end data pipelines into intuitive, user-friendly web interfaces. This bridged the gap between engineering and operations, proving that powerful backend code can be made easily accessible to non-technical business stakeholders.
 
 
 ### Closing Thoughts
-This project only touches the surface of all the insights that could be mined from the AdventureWorks database. I learned so much even just figuring out how to use PSQL and diagnose error messages I was recieving when trying to load the database into PostgreSql. This project has given me the confidence to work on future projects using databases with dozens of tables.
+
+This project was super fun and something I've wanted to do as soon as I finished the Google Advanced Data Analytics course. I think a good next step would be to see how possible it is to use Streamlit and sqllite3 to make it possible for someone to easily add new customers, prices, etc. to the tables. I could imagine building out a whole Python-based system that allows for mapping to be easily updated by people with limited technical backgrounds!
