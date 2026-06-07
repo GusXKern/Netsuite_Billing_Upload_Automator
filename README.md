@@ -382,7 +382,7 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"An error occurred while processing the file: {e}")
 ```
-And in the end, the user is able to easily transform the raw data file into an uploadable CSV:'
+And in the end, the user is able to easily transform the raw data file into an uploadable CSV:
 ![The Final Site Upload Steps](Python_Billing_Automation/GIF.gif)
 
 
