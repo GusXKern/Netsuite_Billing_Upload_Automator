@@ -1,7 +1,7 @@
 # Background
-In my previous role, I worked on building tools to automate various accounting functions. Using mostly advanced Google Sheets formulas and Google Apps Script I was able to take previously time consuming manual tasks and turn them into easily understandable and shareable spreadsheet-based tools. While in this role, the project I spent the most time on was rebuilding our tool to automate the creation of invoices in Netsuite. 
+In my previous role, I worked on building tools to automate various accounting functions. Using mostly advanced Google Sheets formulas and Google Apps Script, I was able to take previously time consuming manual tasks and turn them into easily understandable and shareable spreadsheet-based tools. While in this role, the project I spent the most time on was rebuilding our tool to automate the creation of invoices in NetSuite. 
 
-(Add part about why I did this project: Make fake data, add price levels to raw data using mapping, setting up SQL database with tables that have mapping logic, then making streamlit webpage)
+After completing both the Google Data Analytics and Advanced Data Analytics courses, I wanted to see if I could use Python to build a tool that was faster and more reliable than the spreadsheet alternative.
 
 # Tools I Used
 
@@ -9,7 +9,7 @@ In my previous role, I worked on building tools to automate various accounting f
 - **Visual Studio Code:** Used to run all the code.
 - **Git & GitHub:** Essential for version control and sharing my Python scripts and analysis, ensuring collaboration and project tracking.
 
-While coding, I also made extensive use of online tutorials and the free AI Google Gemini, especially to help with the faker, sqllite3, and streamlit portions of the code. Combined, I was able to use the AI to introduce me to the best ways to perform specific tasks (ex. "What's the best way to use SQL and Python together) with online resources then allowing me to learn and troubleshoot issues I ran into with the initial AI-assisted code. Ultimately, this was a project for learning how to use Python, so I still went out of my way to understand exactly how everything functions and fits together, and in the end, I learned a ton!
+While coding, I also made extensive use of online tutorials and the free AI Google Gemini, especially to help with the faker, sqlite3, and streamlit portions of the code. Combined, I was able to use the AI to introduce me to the best ways to perform specific tasks (ex. "What's the best way to use SQL and Python together) with online resources then allowing me to learn and troubleshoot issues I ran into with the initial AI-assisted code. Ultimately, this was a project for learning how to use Python, so I still went out of my way to understand exactly how everything functions and fits together, and in the end, I learned a ton!
 
 
 # Key Steps
@@ -17,7 +17,7 @@ While coding, I also made extensive use of online tutorials and the free AI Goog
 
 ### 1. Generate Fake Raw Data
 #### Rationale:
-- In order to mimic the kinds of raw data that we were provided while limiting complexity and keeping any client data/processes confidential, I had to make my own raw data from scratch. In the spirit of optimization, I used the Python package 'Faker' to help me quickly and easily generate the necessary fake data. Specifically, the code was able to generate five random company names, and assign a random item code, location, state, county, type, number of units, and billing date from a set list of criteria for each row.
+- In order to mimic the kinds of raw data that we were provided while limiting complexity and keeping any client data/processes confidential, I had to make my own raw data from scratch. In the spirit of optimization, I used the Python package 'Faker' to help me quickly and easily generate the necessary fake data. Specifically, the code was able to generate five random company names and assign a random item code, location, state, county, type, number of units, and billing date from a set list of criteria for each row.
 - As an example of how the code works, here is the first portion of the code:
 ```python
 import pandas as pd
@@ -53,11 +53,10 @@ data_mappings = {
 
 ### 2. Make and Test Price Level Mapping
 For the next step, I wanted to test out the most important feature of the upload template before working on the rest: assigning Price Levels. In real life, each customer might have a variety of unique pricing tiers triggered based on location, the type of services provided, etc. For this project, I assigned each price level to a unique combination of Customer, County, and Type and mapped it in a CSV:
-![Price Level Mapping](Photos/)
+![Price Level Mapping](Python_Billing_Automation/PL_Mapping.png)
 
 As you can see above, Johnson-Clark and Peterson Inc each have multiple price levels, with Johnson-Clark having different pricing for each County-Type combination, and Peterson Inc having a different price for each county. The other three firms just use the base pricing for that specific customer (ex. Powell, Barnes and Owens). 
-
-In the code below, we use this CSV and 
+ 
 ```Python
 import pandas as pd
 
@@ -117,19 +116,19 @@ def assign_price_levels(billing_path, rules_path):
 # Let's run it!
 df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
 ```
-In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0 and then the three criteria are evaluated for each of the Price Levels on the price level CSV. 
+In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0, and then the three criteria are evaluated for each of the price levels in the price level CSV. 
 
 For example, for this row in the raw data, each row of the Price Level mapping is given a score based on how many matches there are, with a match in any category being worth 2, versus the default of 1. I manually added a score column so you can see how it ends up picking the correct Price Level.
-
+![Sample Row](Python_Billing_Automation/Sample_Row.png)
 ![Price Level Mapping](Python_Billing_Automation/PL_Mapping_Scores.png)
 And here is how it assigns the Price Levels to the Johnson-Clark rows:
-![Alt Text](Python_Billing_Automation/JC_PLs.png)
+![Johnson-Clark Rows](Python_Billing_Automation/JC_PLs.png)
 ### 3. Create SQL Tables with Mapping for Upload Page
 Now that we have seen how our mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, as we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
 
 After mapping out all the required tables and connections:
 ![Tables Mapped Out](Python_Billing_Automation/Tables_Mapped_Out.png)
-And then built them using Python and sqlite3:
+I then built them using Python and sqlite3:
 ```Python
 import sqlite3
 import pandas as pd
@@ -322,7 +321,7 @@ def process_billing_dataframe(df_billing):
     
     return df_grouped[final_cols]
 ```
-The key element of the above code block is how it aggregates the total number of units for each unique Customer/Item/Price Level/CA Line? combination. Everything else is just taking from various tables, looking at the item code, price level, etc. and pulling the requisite information. For example, in the prior section we saw that one of the rows of the price_db was:
+The key element of the above code block is how it aggregates the total number of units for each unique Customer/Item/Price Level/CA Line? combination. Everything else is just taking from various tables, looking at the item code, price level, etc., and pulling the requisite information. For example, in the prior section, we saw that one of the rows of the price_db was:
 ```Python
 (jc_name, "1001", "JC-CX-TypeA", 110.00)
 ```
@@ -392,11 +391,11 @@ And in the end, the user is able to easily transform the raw data file into an u
 Building this end-to-end automation pipeline allowed me to bridge the gap between traditional accounting workflows and modern data engineering. Through this project, I leveled up several core technical competencies:
 
 - **🏗️ Relational Database Schema Design:** Instead of relying on messy, disconnected flat files, I learned how to architect a centralized SQLite database. I mastered utilizing primary keys, mapping out foreign key constraints to enforce data integrity, and establishing a single source of truth for corporate finance logic.
-- **🎛️ Feature Engineering & Heuristic Mapping:** I learned how to design a deterministic scoring algorithm (a rule-based heuristic classifier) in Python to handle multi-dimensional matching (Customer, County, and Type). This taught me how to program complex business logic that gracefully handles edge-cases and fallbacks without breaking the pipeline.
+- **🎛️ Feature Engineering & Heuristic Mapping:** I learned how to design a deterministic scoring algorithm (a rule-based heuristic classifier) in Python to handle multi-dimensional matching (Customer, County, and Type). This taught me how to program complex business logic that gracefully handles edge cases and fallbacks without breaking the pipeline.
 - **📊 Advanced Data Aggregation with Pandas:** I deepened my understanding of vectorized data manipulation by using Pandas to handle group-by operations, conditional data flags (`CA Line?`), and structural table merges—replacing resource-heavy loop iterations with clean, scalable, join-based logic.
 - **🖥️ Full-Stack Prototyping with Streamlit:** I learned how to wrap complex back-end data pipelines into intuitive, user-friendly web interfaces. This bridged the gap between engineering and operations, proving that powerful backend code can be made easily accessible to non-technical business stakeholders.
 
 
 ### Closing Thoughts
 
-This project was super fun and something I've wanted to do as soon as I finished the Google Advanced Data Analytics course. I think a good next step would be to see how possible it is to use Streamlit and sqllite3 to make it possible for someone to easily add new customers, prices, etc. to the tables. I could imagine building out a whole Python-based system that allows for mapping to be easily updated by people with limited technical backgrounds!
+This project was super fun and something I've wanted to do as soon as I finished the Google Advanced Data Analytics course. I think a good next step would be to see how possible it is to use Streamlit and SQLite3 to make it possible for someone to easily add new customers, prices, etc. to the tables. I could imagine building out a whole Python-based system that allows for mapping to be easily updated by people with limited technical backgrounds!
