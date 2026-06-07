@@ -48,8 +48,8 @@ data_mappings = {
 }
 ```
 
-- Using faker, we can generate 5 random firm names. Each row then includes a random item from each of the parts of the Setup Mappings. After running, it looks like this:
-![First Few Rows of the Generated Raw Data](Photos/Test_Data.png)
+- Using Faker, we can generate 5 random firm names. Each row then includes a random item from each of the parts of the Setup Mappings. After running, it looks like this:
+![First Few Rows of the Generated Raw Data](Python_Billing_Automation/Test_Data.png)
 
 ### 2. Make and Test Price Level Mapping
 For the next step, I wanted to test out the most important feature of the upload template before working on the rest: assigning Price Levels. In real life, each customer might have a variety of unique pricing tiers triggered based on location, the type of services provided, etc. For this project, I assigned each price level to a unique combination of Customer, County, and Type and mapped it in a CSV:
@@ -120,15 +120,15 @@ df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
 In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0 and then the three criteria are evaluated for each of the Price Levels on the price level CSV. 
 
 For example, for this row in the raw data, each row of the Price Level mapping is given a score based on how many matches there are, with a match in any category being worth 2, versus the default of 1. I manually added a score column so you can see how it ends up picking the correct Price Level.
-![Price Level Mapping](Photos/)
-![Price Level Mapping](Photos/)
+
+![Price Level Mapping](Python_Billing_Automation/PL_Mapping_Scores.png)
 And here is how it assigns the Price Levels to the Johnson-Clark rows:
-![Alt Text](Python_NS_Billing_Upload_Automation/JC_PLs.png)
+![Alt Text](Python_Billing_Automation/JC_PLs.png)
 ### 3. Create SQL Tables with Mapping for Upload Page
 Now that we have seen how our mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, as we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
 
 After mapping out all the required tables and connections:
-![Tables Mapped Out](Photos/)
+![Tables Mapped Out](Python_Billing_Automation/Tables_Mapped_Out.png)
 And then built them using Python and sqlite3:
 ```Python
 import sqlite3
@@ -384,7 +384,7 @@ if uploaded_file is not None:
         st.error(f"An error occurred while processing the file: {e}")
 ```
 And in the end, the user is able to easily transform the raw data file into an uploadable CSV:'
-![The Final Site Upload Steps](/Python NS Billing Upload Automation/GIF.gif)
+![The Final Site Upload Steps](Python_Billing_Automation/GIF.gif)
 
 
 # What I Learned
