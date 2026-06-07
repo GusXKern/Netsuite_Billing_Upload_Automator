@@ -123,7 +123,7 @@ For example, for this row in the raw data, each row of the Price Level mapping i
 ![Price Level Mapping](Photos/)
 ![Price Level Mapping](Photos/)
 And here is how it assigns the Price Levels to the Johnson-Clark rows:
-![JC PL](Photos/)
+![Alt Text](Python_NS_Billing_Upload_Automation/JC_PLs.png)
 ### 3. Create SQL Tables with Mapping for Upload Page
 Now that we have seen how our mappings stored in a table can be used in a function to assign Price Levels, we can flesh out the rest of the mapping required to make the final upload form. Instead of making a bunch of different CSV files, as we did before with Price Levels, we will make a SQL database and store all the mappings in tables that we can relate to each other through foreign keys.
 
