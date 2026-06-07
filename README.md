@@ -119,7 +119,7 @@ df_final = assign_price_levels("raw_billing_data.csv", "price_level_rules.csv")
 In order to take the mapping in the CSV and turn it into something that can look at the raw data row by row and assign the correct Price Level, we use a classification algorithm. For each row of the raw data, the score starts at 0, and then the three criteria are evaluated for each of the price levels in the price level CSV. 
 
 For example, for this row in the raw data, each row of the Price Level mapping is given a score based on how many matches there are, with a match in any category being worth 2, versus the default of 1. I manually added a score column so you can see how it ends up picking the correct Price Level.
-![Sample Row](Python_Billing_Automation/Sample_Row.png)
+![Sample Row](Python_Billing_Automation/Sample%20Row.png)
 ![Price Level Mapping](Python_Billing_Automation/PL_Mapping_Scores.png)
 And here is how it assigns the Price Levels to the Johnson-Clark rows:
 ![Johnson-Clark Rows](Python_Billing_Automation/JC_PLs.png)
