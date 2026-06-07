@@ -11,7 +11,6 @@ In my previous role, I worked on building tools to automate various accounting f
 
 While coding, I also made extensive use of online tutorials and the free AI Google Gemini, especially to help with the faker, sqllite3, and streamlit portions of the code. Combined, I was able to use the AI to introduce me to the best ways to perform specific tasks (ex. "What's the best way to use SQL and Python together) with online resources then allowing me to learn and troubleshoot issues I ran into with the initial AI-assisted code. Ultimately, this was a project for learning how to use Python, so I still went out of my way to understand exactly how everything functions and fits together, and in the end, I learned a ton!
 
-Check out the Python code I used here: [AdventureWorks Queries](Adventureworks.session.sql)
 
 # Key Steps
 
