@@ -384,7 +384,7 @@ if uploaded_file is not None:
         st.error(f"An error occurred while processing the file: {e}")
 ```
 And in the end, the user is able to easily transform the raw data file into an uploadable CSV:'
-(GIF)!~
+![The Final Site Upload Steps](/Python NS Billing Upload Automation/GIF.gif)
 
 
 # What I Learned
